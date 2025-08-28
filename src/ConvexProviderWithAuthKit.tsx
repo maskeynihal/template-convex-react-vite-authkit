@@ -1,5 +1,6 @@
 import { ReactNode, useCallback, useMemo } from 'react';
-import { ConvexProviderWithAuth } from 'convex/react';
+import { ConvexProviderWithAuth, useQuery } from 'convex/react';
+import { api } from '../convex/_generated/api';
 
 type IConvexReactClient = {
   setAuth(fetchToken: () => Promise<string | null>): void;

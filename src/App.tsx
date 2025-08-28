@@ -1,6 +1,9 @@
-import { Authenticated, Unauthenticated, useMutation, useQuery } from 'convex/react';
-import { api } from '../convex/_generated/api';
 import { useAuth } from '@workos-inc/authkit-react';
+import { Authenticated, AuthLoading, Unauthenticated, useMutation, useQuery } from 'convex/react';
+
+import { api } from '../convex/_generated/api';
+
+import { useAuthUser } from './AuthUserContext/useAuthUser';
 
 export default function App() {
   return (
@@ -20,19 +23,30 @@ export default function App() {
             <AuthButton />
           </div>
         </Unauthenticated>
+        <AuthLoading>
+          <div className="mx-auto">Checking if you are logged in</div>
+        </AuthLoading>
       </main>
     </>
   );
 }
 
 function AuthButton() {
-  const { user, signIn, signOut } = useAuth();
+  const { user, signIn, signOut, isLoading } = useAuth();
+
+  if (isLoading) {
+    return (
+      <button className="bg-dark dark:bg-light text-light dark:text-dark text-sm px-4 py-2 rounded-md border-2 disabled cursor-progress">
+        Checking if you logged in...
+      </button>
+    );
+  }
 
   if (user) {
     return (
       <button
         onClick={() => signOut()}
-        className="bg-dark dark:bg-light text-light dark:text-dark text-sm px-4 py-2 rounded-md border-2"
+        className="bg-dark dark:bg-light text-light dark:text-dark text-sm px-4 py-2 rounded-md border-2 cursor-pointer"
       >
         Sign out
       </button>
@@ -42,7 +56,7 @@ function AuthButton() {
   return (
     <button
       onClick={() => void signIn()}
-      className="bg-dark dark:bg-light text-light dark:text-dark text-sm px-4 py-2 rounded-md border-2"
+      className="bg-dark dark:bg-light text-light dark:text-dark text-sm px-4 py-2 rounded-md border-2 cursor-pointer"
     >
       Sign in
     </button>
@@ -50,23 +64,26 @@ function AuthButton() {
 }
 
 function Content() {
-  const { viewer, numbers } =
-    useQuery(api.myFunctions.listNumbers, {
+  const { viewer, randomNumbers } =
+    useQuery(api.randomNumbers.get, {
       count: 10,
     }) ?? {};
-  const addNumber = useMutation(api.myFunctions.addNumber);
+  const addNumber = useMutation(api.randomNumbers.create);
 
-  if (viewer === undefined || numbers === undefined) {
+  const { user, isLoading } = useAuthUser();
+  const { user: loggedInUserFromDatabase } = useAuthUser();
+
+  if (viewer === undefined || randomNumbers === undefined || isLoading) {
     return (
       <div className="mx-auto">
-        <p>loading... (consider a loading skeleton)</p>
+        <p>loading your numbers...</p>
       </div>
     );
   }
 
   return (
     <div className="flex flex-col gap-8 max-w-lg mx-auto">
-      <p>Welcome {viewer ?? 'Anonymous'}!</p>
+      <p>Welcome {user?.firstName ?? 'Anonymous'}!</p>
       <p>
         Click the button below and open this page in another window - this data is persisted in the Convex cloud
         database!
@@ -81,11 +98,30 @@ function Content() {
           Add a random number
         </button>
       </p>
-      <p>Numbers: {numbers?.length === 0 ? 'Click the button!' : (numbers?.join(', ') ?? '...')}</p>
+      <p>
+        Numbers:
+        {randomNumbers?.length === 0 ? (
+          'Click the button!'
+        ) : (
+          <ul>
+            {randomNumbers.map((number) => {
+              return (
+                <li key={number.value}>
+                  {number.value}
+
+                  {loggedInUserFromDatabase?._id === number.userId && (
+                    <span className="ml-2 px-2 py-0.5 bg-blue-500 text-white text-xs rounded-full">created by me</span>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </p>
       <p>
         Edit{' '}
         <code className="text-sm font-bold font-mono bg-slate-200 dark:bg-slate-800 px-1 py-0.5 rounded-md">
-          convex/myFunctions.ts
+          convex/randomNumber.ts
         </code>{' '}
         to change your backend
       </p>
